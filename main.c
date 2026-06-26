@@ -1,29 +1,26 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define WIDTH  20
-#define HEIGHT 10
+#include <raylib.h>
 
-#ifdef _WIN32
-    #include <windows.h>
-    #define SLEEP_MS(ms) Sleep(ms)
-#else
-    #include <unistd.h>
-    #define SLEEP_MS(ms) usleep((ms) * 1000)
-#endif
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
-#define CLEAR_SCREEN() printf("\x1b[2J\x1b[H")
-#define HIDE_CURSOR() printf("\x1b[?25l")
+#define GRID_WIDTH  40
+#define GRID_HEIGHT 30
+
+#define CELL_SIZE (SCREEN_WIDTH / GRID_WIDTH)
+#define CELL_MARGIN (CELL_SIZE / 10)
 
 typedef struct {
-    char values[HEIGHT][WIDTH];
+    char values[GRID_HEIGHT][GRID_WIDTH];
 } Board;
 
-Board parseBoard(char s[HEIGHT+1][WIDTH+1], char alive, char dead) {
+Board parseBoard(char s[GRID_HEIGHT][GRID_WIDTH+1], char alive, char dead) {
     assert(alive != dead);
     Board board = {0};
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < GRID_HEIGHT; y++) {
+        for (int x = 0; x < GRID_WIDTH; x++) {
             if (s[y][x] == alive)
                 board.values[y][x] = 1;
             else if (s[y][x] != dead)
@@ -33,31 +30,45 @@ Board parseBoard(char s[HEIGHT+1][WIDTH+1], char alive, char dead) {
     return board;
 
     error:
+    printf("An error occurred while parsing board");
     return (Board){0};
 }
 
 void printBoard(Board board) {
     printf("\x1b[H");
-    for (int y = 0; y < HEIGHT; y++) {
-        char line[WIDTH] = {0};
-        for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < GRID_HEIGHT; y++) {
+        char line[GRID_WIDTH] = {0};
+        for (int x = 0; x < GRID_WIDTH; x++) {
             if (board.values[y][x]) line[x] = '#';
             else                    line[x] = '.';
         }
-        printf("%.*s\n", WIDTH, line);
+        printf("%.*s\n", GRID_WIDTH, line);
+    }
+}
+
+void drawBoard(Board board) {
+    ClearBackground(BLACK);
+    for (int y = 0; y < GRID_HEIGHT; y++) {
+        for (int x = 0; x < GRID_WIDTH; x++) {
+            DrawRectangle(
+                x * CELL_SIZE + CELL_MARGIN, y * CELL_SIZE + CELL_MARGIN,
+                CELL_SIZE - 2 * CELL_MARGIN, CELL_SIZE - 2 * CELL_MARGIN,
+                board.values[y][x] ? WHITE : DARKGRAY
+            );
+        }
     }
 }
 
 void nextState(Board *board) {
     Board old = *board;
     
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < GRID_HEIGHT; y++) {
+        for (int x = 0; x < GRID_WIDTH; x++) {
             int neighbours = 0;
             for (int dy = -1; dy <= 1; dy++) {
-                int ny = (y + dy + HEIGHT) % HEIGHT;
+                int ny = (y + dy + GRID_HEIGHT) % GRID_HEIGHT;
                 for (int dx = -1; dx <= 1; dx++) {
-                    int nx = (x + dx + WIDTH) % WIDTH;
+                    int nx = (x + dx + GRID_WIDTH) % GRID_WIDTH;
                     if (old.values[ny][nx]) neighbours++;
                 }
             }
@@ -75,27 +86,49 @@ void nextState(Board *board) {
 }
 
 int main() {
-    char template[HEIGHT+1][WIDTH+1] = {
-        "....................",
-        "..#.................",
-        "...#................",
-        ".###................",
-        "....................",
-        "....................",
-        "....................",
-        "....................",
-        "....................",
-        "...................."
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Cellular automata");
+    SetTargetFPS(20);
+
+    char template[GRID_HEIGHT][GRID_WIDTH+1] = {
+        "........................................",
+        "........................................",
+        "........................................",
+        "..#.....................................",
+        "...#....................................",
+        ".###....................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "..#.....................................",
+        "...#....................................",
+        ".###....................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "..#.....................................",
+        "...#....................................",
+        ".###....................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................",
+        "........................................"
     };
-
     Board board = parseBoard(template, '#', '.');
-    CLEAR_SCREEN();
-    HIDE_CURSOR();
-    printBoard(board);
 
-    while (1) {
-        SLEEP_MS(50);
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        drawBoard(board);
         nextState(&board);
-        printBoard(board);
+        EndDrawing();
     }
+
+    return 0;
 }
